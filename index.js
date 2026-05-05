@@ -1,76 +1,45 @@
-const express = require("express");
-const cors = require("cors");
-const IntaSend = require("intasend-node");
+const express = require('express');
+const IntaSend = require('intasend-node');
 
 const app = express();
-
-app.use(cors());
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
-// 🔑 Initialize IntaSend SDK
+// Initialize IntaSend
 const intasend = new IntaSend(
-  process.env.PUBLISHABLE_KEY,
-  process.env.SECRET_KEY,
-  false // false = LIVE mode, true = TEST mode
+    process.env.INTASEND_PUBLISHABLE_KEY,
+    process.env.INTASEND_SECRET_KEY,
+    process.env.INTASEND_ENVIRONMENT || 'sandbox'
 );
 
-const collection = intasend.collection();
+// STK Push endpoint
+app.post('/api/mpesa/stkpush', async (req, res) => {
+    try {
+        const { phone, amount, reference } = req.body;
 
-// 🧪 Health check route
-app.get("/", (req, res) => {
-  res.send("🚀 IntaSend STK Backend Running");
+        // phone must be in format 2547XXXXXXXX
+        const cleanedPhone = phone.replace(/\D/g, '');
+        if (!cleanedPhone.startsWith('254')) {
+            return res.status(400).json({ error: 'Phone must start with 254 (e.g., 254712345678)' });
+        }
+
+        const response = await intasend.collect.mpesaStkPush(
+            cleanedPhone,
+            parseFloat(amount),
+            reference || `INV_${Date.now()}`
+        );
+
+        res.json({ success: true, data: response });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ success: false, error: error.message });
+    }
 });
 
-// 💳 STK Push route
-app.post("/pay", async (req, res) => {
-  const { phone, amount } = req.body;
-
-  if (!phone || !amount) {
-    return res.status(400).json({
-      error: "Phone and amount are required"
-    });
-  }
-
-  try {
-    const response = await collection.mpesaStkPush({
-      first_name: "Customer",
-      last_name: "User",
-      email: "customer@example.com",
-      host: "https://your-frontend-domain.com",
-      amount: Number(amount),
-      phone_number: phone,
-      api_ref: "order_" + Date.now()
-    });
-
-    console.log("STK Response:", response);
-
-    // Send response back to frontend
-    return res.json(response);
-
-  } catch (error) {
-    console.error("STK Error:", error);
-
-    return res.status(500).json({
-      error: "Payment failed",
-      details: error.message || error
-    });
-  }
+// Serve your HTML page (optional)
+app.get('/', (req, res) => {
+    res.sendFile(__dirname + '/index.html');
 });
 
-// 🔔 Webhook (for payment confirmation)
-app.post("/callback", (req, res) => {
-  console.log("Payment callback received:", req.body);
-
-  // Here you will:
-  // - confirm payment
-  // - update database (Supabase etc.)
-  // - unlock service/product
-
-  res.sendStatus(200);
-});
-
-// 🚀 Start server
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));

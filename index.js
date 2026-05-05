@@ -6,17 +6,17 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Test route
+// Health check
 app.get("/", (req, res) => {
-  res.send("🚀 IntaSend API is running");
+  res.send("🚀 LIVE IntaSend API running");
 });
 
-// Payment route
+// 🔥 PAYMENT ROUTE (LIVE)
 app.post("/pay", async (req, res) => {
   const { phone, amount } = req.body;
 
   try {
-    const response = await fetch("https://sandbox.intasend.com/api/v1/payment/collection/", {
+    const response = await fetch("https://api.intasend.com/api/v1/payment/collection/", {
       method: "POST",
       headers: {
         "Authorization": `Bearer ${process.env.SECRET_KEY}`,
@@ -27,10 +27,10 @@ app.post("/pay", async (req, res) => {
         currency: "KES",
         amount: amount,
         phone_number: phone,
-        email: "test@example.com",
-        first_name: "User",
-        last_name: "Test",
-        redirect_url: "https://yourwebsite.com/success"
+        email: "user@example.com",
+        first_name: "Customer",
+        last_name: "User",
+        redirect_url: "https://yourdomain.com/success.html"
       })
     });
 
@@ -39,14 +39,29 @@ app.post("/pay", async (req, res) => {
     if (data.url) {
       res.json(data);
     } else {
-      res.status(400).json({ error: data });
+      res.status(400).json(data);
     }
 
   } catch (error) {
-    res.status(500).json({ error: "Server error", details: error.message });
+    res.status(500).json({ error: error.message });
   }
 });
 
+
+// 🔔 WEBHOOK (VERY IMPORTANT)
+app.post("/callback", (req, res) => {
+  console.log("Payment update:", req.body);
+
+  // Example:
+  if (req.body.state === "COMPLETE") {
+    console.log("✅ Payment successful");
+    // TODO: update DB / grant access
+  }
+
+  res.sendStatus(200);
+});
+
+
 // Start server
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+app.listen(PORT, () => console.log("Server running"));

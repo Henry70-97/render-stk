@@ -1,13 +1,16 @@
 {
-  "name": "intasend-live",
+  "name": "render-stk",
   "version": "1.0.0",
-  "main": "index.js",
+  "description": "M-Pesa STK Push using IntaSend on Render",
+  "main": "server.js",
   "scripts": {
-    "start": "node index.js"
+    "start": "node server.js"
   },
   "dependencies": {
     "express": "^4.18.2",
-    "node-fetch": "^2.6.7",
-    "cors": "^2.8.5"
+    "intasend-node": "^1.2.0"
+  },
+  "engines": {
+    "node": ">=16.0.0"
   }
 }

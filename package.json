@@ -1,7 +1,6 @@
 {
-  "name": "intasend-backend",
+  "name": "intasend-live",
   "version": "1.0.0",
-  "description": "IntaSend STK Push Backend",
   "main": "index.js",
   "scripts": {
     "start": "node index.js"

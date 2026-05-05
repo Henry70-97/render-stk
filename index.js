@@ -1,66 +1,76 @@
 const express = require("express");
-const fetch = require("node-fetch");
 const cors = require("cors");
+const IntaSend = require("intasend-node");
 
 const app = express();
 
 app.use(cors());
 app.use(express.json());
 
-// Health check
+// 🔑 Initialize IntaSend SDK
+const intasend = new IntaSend(
+  process.env.PUBLISHABLE_KEY,
+  process.env.SECRET_KEY,
+  false // false = LIVE mode, true = TEST mode
+);
+
+const collection = intasend.collection();
+
+// 🧪 Health check route
 app.get("/", (req, res) => {
-  res.send("🚀 LIVE IntaSend API running");
+  res.send("🚀 IntaSend STK Backend Running");
 });
 
-// 🔥 PAYMENT ROUTE (PRODUCTION READY)
+// 💳 STK Push route
 app.post("/pay", async (req, res) => {
   const { phone, amount } = req.body;
 
+  if (!phone || !amount) {
+    return res.status(400).json({
+      error: "Phone and amount are required"
+    });
+  }
+
   try {
-    const response = await fetch(
-      "https://api.intasend.com/api/v1/payment/collection/",
-      {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${process.env.SECRET_KEY}`,
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          public_key: process.env.PUBLISHABLE_KEY,
-          currency: "KES",
-          amount: amount,
-          phone_number: phone,
-          method: "MPESA",   // 🔥 FIXED (required in live mode)
-          email: "customer@example.com",
-          first_name: "Customer",
-          last_name: "User",
-          redirect_url: "https://yourdomain.com/success.html"
-        })
-      }
-    );
+    const response = await collection.mpesaStkPush({
+      first_name: "Customer",
+      last_name: "User",
+      email: "customer@example.com",
+      host: "https://your-frontend-domain.com",
+      amount: Number(amount),
+      phone_number: phone,
+      api_ref: "order_" + Date.now()
+    });
 
-    const data = await response.json();
+    console.log("STK Response:", response);
 
-    if (data.url) {
-      res.json(data);
-    } else {
-      res.status(400).json(data);
-    }
+    // Send response back to frontend
+    return res.json(response);
 
-  } catch (err) {
-    res.status(500).json({ error: err.message });
+  } catch (error) {
+    console.error("STK Error:", error);
+
+    return res.status(500).json({
+      error: "Payment failed",
+      details: error.message || error
+    });
   }
 });
 
-// 🔔 WEBHOOK (for payment confirmation)
+// 🔔 Webhook (for payment confirmation)
 app.post("/callback", (req, res) => {
-  console.log("Payment update:", req.body);
+  console.log("Payment callback received:", req.body);
 
-  // You can verify payment here and update database
+  // Here you will:
+  // - confirm payment
+  // - update database (Supabase etc.)
+  // - unlock service/product
 
   res.sendStatus(200);
 });
 
-// Start server
+// 🚀 Start server
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log("Server running on port", PORT));
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+});
